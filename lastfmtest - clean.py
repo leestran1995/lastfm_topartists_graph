@@ -31,7 +31,7 @@ def build_map(prune):
 	depth = input("How many related artists do you want to search? ")
 	limit = input("How many of your listened artists do you want to search through? ")
 	
-	api_key = "API KEY"
+	api_key = "KEY"
 
 	username_request = "http://ws.audioscrobbler.com/2.0/?method=user.gettopartists&user={}&limit={}&length={}&api_key={}&format=json".format(username, limit, length, api_key)
 
@@ -113,22 +113,37 @@ def show_graph_as_plotly(G):
 	Xn=[pos[k][0] for k in pos.keys()]
 	Yn=[pos[k][1] for k in pos.keys()]
 	labels = []
+	annotations_text = {}
 	colors = []
 	for node in G.nodes:
 		labels.append(node.name)
 		if(node.listened):
 			colors.append('rgb(240,0,0)')
+			annotations_text[node] = node.name
 		else:
 			colors.append('rgb(0,240,0)')
+			annotations_text[node] = ""
+
+	annotations = []
+	for k in pos.keys():
+		annotations.append(dict(text=annotations_text[k], 
+                                x=pos[k][0], 
+                                y=pos[k][1]+0.035,#this additional value is chosen by trial and error
+                                xref='x1', yref='y1',
+                                font=dict(color= "rgb(10,10,10)", size=14),
+                                showarrow=False)
+                          );
 		
 	trace_nodes=dict(type='scatter',
 				 x=Xn, 
 				 y=Yn,
 				 mode='markers',
-				 #marker=dict(size=28, color='rgb(0,240,0)'),
 				 marker=dict(size=28, color=colors),
-				 text=labels,
-				 hoverinfo='text')
+				 text=annotations,
+				 textposition="bottom center",
+				 hoverinfo='text',
+				 hovertext=labels
+)
 				 
 	Xe=[]
 	Ye=[]
@@ -172,6 +187,7 @@ def show_graph_as_plotly(G):
 
 
 	fig = dict(data=[trace_edges, trace_nodes], layout=layout)
+	fig['layout'].update(annotations=annotations)
 	plot(fig)
 
 def get_prune():
