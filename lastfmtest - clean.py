@@ -1,11 +1,12 @@
 import requests
 import networkx as nx 
-import matplotlib.pyplot as plt
 import time
+import tkinter
 from plotly.offline import download_plotlyjs, init_notebook_mode,  iplot, plot
 
 listened_color = "rgb(0, 68, 102)"
 related_color = "rgb(102, 204, 255)"
+api_key = "9a9a18f5e3b0ceeed0a1b1274136e681"
 
 	
 
@@ -80,7 +81,6 @@ def crawl_artist_list(artist_list, prune):
 
 def build_map(prune):
 	username_request = "http://ws.audioscrobbler.com/2.0/?method=user.gettopartists&user={}&limit={}&length={}&api_key={}&format=json".format(username, limit, length, api_key)
-
 	response = requests.get(username_request)
 	data = response.json()
 	artist_list = data["topartists"]["artist"]
@@ -222,7 +222,67 @@ def get_length():
 			exit()
 	return length
 
-api_key = "KEY"
+def generate_graph():
+	global username
+	username = username_t.get()
+	global limit
+	limit = limit_t.get()
+	global depth
+	depth = depth_t.get()
+	global length 
+	length = length_t.get()
+	global prune 
+	prune = prune_t
+	if(prune == 0):
+		prune = False 
+	else:
+		prune = True
+	
+	map = build_map(prune)
+	G = build_graph(map, prune)
+	pos = nx.spring_layout(G)
+	show_graph_as_plotly(G)
+
+username = ""
+limit = -1
+depth = -1
+length = ""
+prune = False
+	
+	
+m = tkinter.Tk()
+tkinter.Label(m, text="username").grid(row=0)
+username_t = tkinter.Entry(m)
+username_t.grid(row=0, column=1)
+
+tkinter.Label(m, text="# of listened artists to search through").grid(row=1)
+limit_t = tkinter.Entry(m)
+limit_t.grid(row=1, column=1)
+
+tkinter.Label(m, text="# related artists to search through").grid(row = 2)
+depth_t = tkinter.Entry(m)
+depth_t.grid(row=2, column=1)
+
+tkinter.Label(m, text="Prune unconnected nodes").grid(row=3)
+prune_t = tkinter.IntVar()
+tkinter.Checkbutton(m, variable=prune_t).grid(row=3, column=1)
+
+tkinter.Label(m, text="Length of time to look through").grid(row=4)
+length_t = tkinter.StringVar()
+tkinter.Radiobutton(m, text="Overall", variable=length_t, value="overall").grid(row=5, column=0)
+tkinter.Radiobutton(m, text="7 Days", variable=length_t, value="7day").grid(row=5, column=1)
+tkinter.Radiobutton(m, text="1 Month", variable=length_t, value="1month").grid(row=6, column=0)
+tkinter.Radiobutton(m, text="3 Months", variable=length_t, value="3month").grid(row=6, column=1)
+tkinter.Radiobutton(m, text="6 Months", variable=length_t, value="6month").grid(row=7, column=0)
+tkinter.Radiobutton(m, text="12 Months", variable=length_t, value="12month").grid(row=7, column=1)
+
+tkinter.Button(m, text="Generate Graph", command=generate_graph).grid(row=8, column=0)
+
+m.mainloop()
+
+
+
+"""
 username = input("Username: ")
 length = get_length()
 limit = input("How many of your listened artists do you want to search through? ")
@@ -233,21 +293,4 @@ map = build_map(prune)
 G = build_graph(map, prune)
 pos = nx.spring_layout(G)
 show_graph_as_plotly(G)
-	
-	
-	
-	
-
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
+"""
