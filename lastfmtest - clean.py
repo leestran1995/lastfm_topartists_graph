@@ -17,21 +17,21 @@ class Artist:
 		self.count += other
 		return self
 		
-def build_map():
+def build_map(prune):
 	username = input("Username: ")
-	depth = input("How many related artists do you want to search? ")
-	limit = input("How many of your listened artists do you want to search through? ")
+	
 	length = input("What length of time do you want to search through? (overall | 7day | 1month | 3month | 6month | 12month): ")
 	lengths = ["overall", "7day", "1month", "3month", "6month", "12month"]
-	
 	while(length not in lengths):
 		length = input("I'm sorry, I didn't recognize that. The available options are: (overall | 7day | 1month | 3month | 6month | 12month). Please try again, "
-		" or enter 'q' to quit: ")
+		" or enter 'q' to give up: ")
 		if(length == "q"):
 			exit()
-		
-		
-	api_key = "API GOES HERE"
+
+	depth = input("How many related artists do you want to search? ")
+	limit = input("How many of your listened artists do you want to search through? ")
+	
+	api_key = "API KEY"
 
 	username_request = "http://ws.audioscrobbler.com/2.0/?method=user.gettopartists&user={}&limit={}&length={}&api_key={}&format=json".format(username, limit, length, api_key)
 
@@ -75,24 +75,35 @@ def build_map():
 				map[artist["name"]] += 1
 
 			map[elem["name"]].neighbors.append(map[artist["name"]])
+			map[artist["name"]].neighbors.append(map[elem["name"]])
 
+	if(prune):
+		print("pruning")
+		for key in list(map):
+			if(not map[key].listened and len(map[key].neighbors) == 1):
+				del map[key]
+				
 	return map
 	
-def build_graph(map):
+def build_graph(map, prune):
 	G = nx.Graph()
 	for key in map:
 		G.add_node(map[key])
 		
 	for key in map:
 		for neighbor in map[key].neighbors:
-			G.add_edge(map[key], neighbor)
+			if(prune):
+				if(not neighbor.listened and len(neighbor.neighbors) > 1):
+					G.add_edge(map[key], neighbor)
+			else:
+				G.add_edge(map[key], neighbor)
 			
 	return G
 	
-	"""
-	Functions lightly altered from:
-	https://plot.ly/~empet/14683/networks-with-plotly/#/
-	"""
+"""
+Functions lightly altered from:
+https://plot.ly/~empet/14683/networks-with-plotly/#/
+"""
 
 
 def show_graph_as_plotly(G):
@@ -162,12 +173,24 @@ def show_graph_as_plotly(G):
 	fig = dict(data=[trace_edges, trace_nodes], layout=layout)
 	plot(fig)
 
+def get_prune():
+	prune = input("Prune unconnected related artists? (y/n): ")
+
+	while(prune not in ["y", "n"]):
+		prune = input("I'm sorry, I didn't recognize that. The available options are: (y/n), "
+		" or enter 'q' to give up: ")
+	if(prune == "q"):
+		exit()
+	
+	if(prune == "y"):
+		return True
+	else:
+		return False
 
 
-
-
-map = build_map()
-G = build_graph(map)
+prune = get_prune()
+map = build_map(prune)
+G = build_graph(map, prune)
 pos = nx.spring_layout(G)
 show_graph_as_plotly(G)
 	
