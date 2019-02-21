@@ -78,7 +78,6 @@ def build_map(prune):
 			map[artist["name"]].neighbors.append(map[elem["name"]])
 
 	if(prune):
-		print("pruning")
 		for key in list(map):
 			if(not map[key].listened and len(map[key].neighbors) == 1):
 				del map[key]
@@ -98,6 +97,8 @@ def build_graph(map, prune):
 			else:
 				G.add_edge(map[key], neighbor)
 			
+	if(prune):
+		G.remove_nodes_from(list(nx.isolates(G)))
 	return G
 	
 """
@@ -151,8 +152,8 @@ def show_graph_as_plotly(G):
 			  )
 	layout=dict(title= 'My Graph',	
 				font= dict(family='Balto'),
-				width=600,
-				height=600,
+				width=1500,
+				height=1500,
 				autosize=False,
 				showlegend=False,
 				xaxis=axis,
