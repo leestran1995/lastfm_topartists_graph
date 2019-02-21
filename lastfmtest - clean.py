@@ -4,6 +4,11 @@ import matplotlib.pyplot as plt
 import time
 from plotly.offline import download_plotlyjs, init_notebook_mode,  iplot, plot
 
+listened_color = "rgb(0, 68, 102)"
+related_color = "rgb(102, 204, 255)"
+
+	
+
 class Artist:
 	def __init__(self, name, listened, mbid=-1):
 		self.name = name 
@@ -16,35 +21,18 @@ class Artist:
 	def __iadd__(self, other):
 		self.count += other
 		return self
+
+
 		
-def build_map(prune):
-	username = input("Username: ")
-	
-	length = input("What length of time do you want to search through? (overall | 7day | 1month | 3month | 6month | 12month): ")
-	lengths = ["overall", "7day", "1month", "3month", "6month", "12month"]
-	while(length not in lengths):
-		length = input("I'm sorry, I didn't recognize that. The available options are: (overall | 7day | 1month | 3month | 6month | 12month). Please try again, "
-		" or enter 'q' to give up: ")
-		if(length == "q"):
-			exit()
-
-	depth = input("How many related artists do you want to search? ")
-	limit = input("How many of your listened artists do you want to search through? ")
-	
-	api_key = "KEY"
-
-	username_request = "http://ws.audioscrobbler.com/2.0/?method=user.gettopartists&user={}&limit={}&length={}&api_key={}&format=json".format(username, limit, length, api_key)
-
-	response = requests.get(username_request)
-	data = response.json()
-	artist_list = data["topartists"]["artist"]
+def crawl_artist_list(artist_list, prune):
 	map = {}
 
+	# Listened to artists
 	for elem in artist_list:
 		if elem["name"] in map:
 			map[elem["name"]].listened = True
 		else:
-			try:
+			try:	# Some artists have no mbid. mbid defaults to -1
 				map[elem["name"]] = Artist(elem["name"], True, elem["mbid"])
 			except:
 				map[elem["name"]] = Artist(elem["name"], True)
@@ -53,17 +41,20 @@ def build_map(prune):
 		try:
 			mbid = elem["mbid"]
 		except:
-			continue
+			continue	# Bypasses related artist since we can't find related artists without an mbid 
 			
-		time.sleep(0.25) # Don't make too many requests!
+		time.sleep(0.25) # Don't make too many requests too fast!
 		similar_request = "http://ws.audioscrobbler.com/2.0/?method=artist.getsimilar&mbid=%s&api_key=%s&format=json&limit=%s" % (mbid, api_key, depth)
 		similar_response = requests.get(similar_request)
 		similar_data = similar_response.json()
+		
+		# The request might fail because last.fm doesn't recognize an artist
 		if "similarartists" not in similar_data:
 			continue
 
 		similar_artist_list = similar_data["similarartists"]["artist"]
 
+		# Handle related artists
 		for artist in similar_artist_list:
 				
 			if not artist["name"] in map:
@@ -77,13 +68,27 @@ def build_map(prune):
 			map[elem["name"]].neighbors.append(map[artist["name"]])
 			map[artist["name"]].neighbors.append(map[elem["name"]])
 
+	# The pruning here might be redundant, since the plotly code makes sure these nodes wouldn't be 
+	# drawn anyways. However, it seems like a good idea to get rid of them. 
+	# In the future, removing entries from the neighbors lists might be wise.
 	if(prune):
 		for key in list(map):
 			if(not map[key].listened and len(map[key].neighbors) == 1):
 				del map[key]
 				
 	return map
+
+def build_map(prune):
+	username_request = "http://ws.audioscrobbler.com/2.0/?method=user.gettopartists&user={}&limit={}&length={}&api_key={}&format=json".format(username, limit, length, api_key)
+
+	response = requests.get(username_request)
+	data = response.json()
+	artist_list = data["topartists"]["artist"]
+
+				
+	return crawl_artist_list(artist_list, prune)
 	
+# Turn our artist map into a networkx graph that we can actually do stuff with
 def build_graph(map, prune):
 	G = nx.Graph()
 	for key in map:
@@ -102,29 +107,31 @@ def build_graph(map, prune):
 	return G
 	
 """
-Functions lightly altered from:
+Function lightly altered from:
 https://plot.ly/~empet/14683/networks-with-plotly/#/
-"""
 
+Take our networkx graph and use plotly to display it
+"""
 
 def show_graph_as_plotly(G):
 	pos = nx.spring_layout(G)
 	
 	Xn=[pos[k][0] for k in pos.keys()]
 	Yn=[pos[k][1] for k in pos.keys()]
-	labels = []
-	annotations_text = {}
-	colors = []
+	hover_labels = []	# Text that appears when hovering over nodes 
+	annotations_text = {}	# Text that appears over listened-nodes 
+	colors = []	# Colors for corresponding nodes 
+	
 	for node in G.nodes:
-		labels.append(node.name)
+		hover_labels.append(node.name)
 		if(node.listened):
-			colors.append('rgb(240,0,0)')
+			colors.append(listened_color)
 			annotations_text[node] = node.name
 		else:
-			colors.append('rgb(0,240,0)')
+			colors.append(related_color)
 			annotations_text[node] = ""
-
-	annotations = []
+			
+	annotations = []	# plotly notations need specific information
 	for k in pos.keys():
 		annotations.append(dict(text=annotations_text[k], 
                                 x=pos[k][0], 
@@ -142,7 +149,7 @@ def show_graph_as_plotly(G):
 				 text=annotations,
 				 textposition="bottom center",
 				 hoverinfo='text',
-				 hovertext=labels
+				 hovertext=hover_labels
 )
 				 
 	Xe=[]
@@ -203,9 +210,25 @@ def get_prune():
 		return True
 	else:
 		return False
+		
+def get_length():
+	length = input("What length of time do you want to search through? (overall | 7day | 1month | 3month | 6month | 12month): ")
+	lengths = ["overall", "7day", "1month", "3month", "6month", "12month"]
+	
+	while(length not in lengths):
+		length = input("I'm sorry, I didn't recognize that. The available options are: (overall | 7day | 1month | 3month | 6month | 12month). Please try again, "
+		" or enter 'q' to give up: ")
+		if(length == "q"):
+			exit()
+	return length
 
-
+api_key = "KEY"
+username = input("Username: ")
+length = get_length()
+limit = input("How many of your listened artists do you want to search through? ")
+depth = input("How many related artists do you want to search? ")
 prune = get_prune()
+
 map = build_map(prune)
 G = build_graph(map, prune)
 pos = nx.spring_layout(G)
