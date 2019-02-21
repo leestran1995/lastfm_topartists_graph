@@ -1,8 +1,7 @@
 import requests
 import networkx as nx 
 import matplotlib.pyplot as plt
-#import plotly.plotly as py 
-#import plotly.graph_objs as go 
+import time
 from plotly.offline import download_plotlyjs, init_notebook_mode,  iplot, plot
 
 class Artist:
@@ -22,8 +21,17 @@ def build_map():
 	username = input("Username: ")
 	depth = input("How many related artists do you want to search? ")
 	limit = input("How many of your listened artists do you want to search through? ")
-	length = "1month"
-	api_key = "API_KEY_GO_HERE"
+	length = input("What length of time do you want to search through? (overall | 7day | 1month | 3month | 6month | 12month): ")
+	lengths = ["overall", "7day", "1month", "3month", "6month", "12month"]
+	
+	while(length not in lengths):
+		length = input("I'm sorry, I didn't recognize that. The available options are: (overall | 7day | 1month | 3month | 6month | 12month). Please try again, "
+		" or enter 'q' to quit: ")
+		if(length == "q"):
+			exit()
+		
+		
+	api_key = "API GOES HERE"
 
 	username_request = "http://ws.audioscrobbler.com/2.0/?method=user.gettopartists&user={}&limit={}&length={}&api_key={}&format=json".format(username, limit, length, api_key)
 
@@ -47,6 +55,7 @@ def build_map():
 		except:
 			continue
 			
+		time.sleep(0.25) # Don't make too many requests!
 		similar_request = "http://ws.audioscrobbler.com/2.0/?method=artist.getsimilar&mbid=%s&api_key=%s&format=json&limit=%s" % (mbid, api_key, depth)
 		similar_response = requests.get(similar_request)
 		similar_data = similar_response.json()
